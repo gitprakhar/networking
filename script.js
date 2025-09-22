@@ -37,10 +37,12 @@ function initializeGoogleSignIn() {
         .then(response => response.json())
         .then(config => {
             if (config.googleClientId) {
-                // Initialize Google Sign-In with the client ID
+                // Initialize Google Sign-In with the client ID and Gmail scope
                 google.accounts.id.initialize({
                     client_id: config.googleClientId,
-                    callback: handleCredentialResponse
+                    callback: handleCredentialResponse,
+                    auto_select: false,
+                    cancel_on_tap_outside: false
                 });
                 
                 // Render the sign-in button
@@ -83,6 +85,56 @@ function handleFallbackSignIn() {
     console.log('Fallback sign-in clicked - Google Sign-In not available');
 }
 
+// Request Gmail API access using OAuth 2.0
+function requestGmailAccess() {
+    console.log('📧 Requesting Gmail API access...');
+    
+    // Get client ID from server config
+    fetch('/api/config')
+        .then(response => response.json())
+        .then(config => {
+            console.log('🔧 Config received:', config);
+            if (config.googleClientId && config.googleClientId !== 'YOUR_GOOGLE_CLIENT_ID') {
+                const clientId = config.googleClientId;
+                const redirectUri = window.location.origin + '/oauth/callback';
+                const scope = 'https://www.googleapis.com/auth/gmail.readonly';
+                
+                console.log('🔑 Using client ID:', clientId);
+                console.log('🌐 Redirect URI:', redirectUri);
+                
+                // Use Google Sign-In JavaScript library for Gmail access
+                const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                    `client_id=${encodeURIComponent(clientId)}&` +
+                    `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                    `scope=${encodeURIComponent(scope)}&` +
+                    `response_type=code&` +
+                    `access_type=offline&` +
+                    `prompt=consent`;
+                
+                console.log('🔗 OAuth URL:', authUrl);
+                
+                // Test the URL by logging each parameter
+                const urlParams = new URLSearchParams(authUrl.split('?')[1]);
+                console.log('📋 URL Parameters:');
+                console.log('  client_id:', urlParams.get('client_id'));
+                console.log('  redirect_uri:', urlParams.get('redirect_uri'));
+                console.log('  scope:', urlParams.get('scope'));
+                console.log('  response_type:', urlParams.get('response_type'));
+                
+                // For debugging, let's redirect to the OAuth URL instead of using popup
+                console.log('🔄 Redirecting to OAuth URL for Gmail access...');
+                window.location.href = authUrl;
+            } else {
+                console.error('❌ Google Client ID not configured properly');
+                showMessage('Google Client ID not configured. Please check server settings.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error getting config:', error);
+            showMessage('Error requesting Gmail access. Please try again.', 'error');
+        });
+}
+
 // Handle Google Sign-In response
 function handleCredentialResponse(response) {
     console.log('🔐 Google Sign-In response received');
@@ -108,6 +160,9 @@ function handleCredentialResponse(response) {
         
         // Save user to database
         saveUserToDatabase();
+        
+        // Request Gmail access after successful sign-in
+        requestGmailAccess();
         
         // Load user data
         loadUserData();
@@ -521,6 +576,13 @@ async function syncEmails() {
     try {
         showMessage('Syncing emails...', 'info');
         
+        // Get the Gmail access token from localStorage
+        const gmailAccessToken = localStorage.getItem('gmailAccessToken');
+        if (!gmailAccessToken) {
+            showMessage('Gmail access not granted. Please sign in again and grant Gmail access.', 'error');
+            return;
+        }
+        
         const response = await fetch('/api/sync-emails', {
             method: 'POST',
             headers: {
@@ -528,7 +590,7 @@ async function syncEmails() {
             },
             body: JSON.stringify({
                 google_id: googleUser.sub,
-                access_token: 'dummy_token' // This would be the actual access token
+                access_token: gmailAccessToken
             })
         });
         

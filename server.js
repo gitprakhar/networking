@@ -57,6 +57,108 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+// OAuth callback endpoint for Gmail access
+app.get('/oauth/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+    
+    console.log('🔄 OAuth callback received');
+    console.log('📝 Authorization code:', code ? 'Present' : 'Missing');
+    console.log('🌐 Full URL:', req.url);
+    
+    if (!code) {
+      return res.status(400).send('Authorization code not provided');
+    }
+    
+    // Exchange authorization code for access token
+    console.log('🔄 Exchanging authorization code for access token...');
+    
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: `${req.protocol}://${req.get('host')}/oauth/callback`
+      })
+    });
+    
+    const tokenData = await tokenResponse.json();
+    console.log('🔑 Token response:', tokenData);
+    
+    if (tokenData.error) {
+      console.error('OAuth token error:', tokenData.error);
+      return res.status(400).send(`OAuth error: ${tokenData.error}`);
+    }
+    
+    console.log('✅ Access token received successfully');
+    
+    // Send the access token to the client
+    res.send(`
+      <html>
+        <head>
+          <title>Gmail Access Granted</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              text-align: center; 
+              padding: 50px; 
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              margin: 0;
+            }
+            .container {
+              background: rgba(255, 255, 255, 0.1);
+              padding: 30px;
+              border-radius: 10px;
+              backdrop-filter: blur(10px);
+              max-width: 400px;
+              margin: 0 auto;
+            }
+            .success-icon {
+              font-size: 48px;
+              margin-bottom: 20px;
+            }
+            .message {
+              font-size: 18px;
+              margin-bottom: 20px;
+            }
+            .redirect-message {
+              font-size: 14px;
+              opacity: 0.8;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success-icon">✅</div>
+            <div class="message">Gmail access granted!</div>
+            <div class="redirect-message">Redirecting you back to the app...</div>
+          </div>
+          <script>
+            // Store the access token in localStorage
+            localStorage.setItem('gmailAccessToken', '${tokenData.access_token}');
+            console.log('✅ Gmail access token stored:', '${tokenData.access_token}');
+            
+            // Redirect back to the main app
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 2000);
+          </script>
+        </body>
+      </html>
+    `);
+    
+  } catch (error) {
+    console.error('OAuth callback error:', error);
+    res.status(500).send('OAuth callback failed');
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
