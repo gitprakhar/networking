@@ -94,8 +94,44 @@
 
         <!-- Content Sections -->
         <div class="content-sections">
+            <!-- Sign In Section -->
+            <div class="content-section active" id="signInSection">
+                <div class="sign-in-container">
+                    <div class="sign-in-card">
+                        <div class="sign-in-header">
+                            <i class="fas fa-network-wired"></i>
+                            <h2>Welcome to Networking Hub</h2>
+                            <p>Connect your Gmail to discover networking opportunities and manage your professional relationships.</p>
+                        </div>
+                        <div class="sign-in-content">
+                            <div class="g_id_signin" id="googleSignInButton"></div>
+                            <div class="fallback-signin" id="fallbackSignIn" style="display: none;">
+                                <button class="signin-btn" onclick="handleFallbackSignIn()">
+                                    <i class="fab fa-google"></i>
+                                    Sign in with Google
+                                </button>
+                            </div>
+                            <div class="sign-in-features">
+                                <div class="feature-item">
+                                    <i class="fas fa-envelope"></i>
+                                    <span>Sync your emails</span>
+                                </div>
+                                <div class="feature-item">
+                                    <i class="fas fa-users"></i>
+                                    <span>Discover contacts</span>
+                                </div>
+                                <div class="feature-item">
+                                    <i class="fas fa-brain"></i>
+                                    <span>AI-powered networking insights</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Emails Section -->
-            <div class="content-section active" id="emailsSection">
+            <div class="content-section" id="emailsSection">
                 <div class="section-header">
                     <h2>Recent Emails</h2>
                     <button class="sync-btn" id="syncEmailsBtn">
@@ -264,22 +300,13 @@
         </div>
     </div>
 
-    <!-- Google Sign-In Button (Hidden by default) -->
+    <!-- Google Sign-In Configuration -->
     <div id="g_id_onload"
          data-client_id=""
          data-context="signin"
          data-ux_mode="popup"
          data-callback="handleCredentialResponse"
          data-auto_prompt="false">
-    </div>
-
-    <div class="g_id_signin"
-         data-type="standard"
-         data-shape="rectangular"
-         data-theme="outline"
-         data-text="signin_with"
-         data-size="large"
-         data-logo_alignment="left">
     </div>
 
     <!-- Message Container -->

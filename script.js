@@ -17,6 +17,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize calendar
     initializeCalendar();
+    
+    // Show fallback sign-in after 3 seconds if Google Sign-In hasn't loaded
+    setTimeout(() => {
+        const googleButton = document.querySelector('.g_id_signin iframe');
+        const fallbackButton = document.getElementById('fallbackSignIn');
+        
+        if (!googleButton && fallbackButton && fallbackButton.style.display === 'none') {
+            console.log('⏰ Google Sign-In timeout, showing fallback');
+            showFallbackSignIn();
+        }
+    }, 3000);
 });
 
 // Initialize Google Sign-In
@@ -33,22 +44,43 @@ function initializeGoogleSignIn() {
                 });
                 
                 // Render the sign-in button
-                google.accounts.id.renderButton(
-                    document.getElementById('g_id_signin'),
-                    {
+                const signInButton = document.getElementById('googleSignInButton');
+                if (signInButton) {
+                    google.accounts.id.renderButton(signInButton, {
                         theme: 'outline',
                         size: 'large',
                         text: 'signin_with',
                         shape: 'rectangular'
-                    }
-                );
+                    });
+                    console.log('✅ Google Sign-In button rendered');
+                } else {
+                    console.error('❌ Google Sign-In button element not found');
+                    showFallbackSignIn();
+                }
             } else {
                 console.error('Google Client ID not configured');
+                showFallbackSignIn();
             }
         })
         .catch(error => {
             console.error('Error loading configuration:', error);
+            showFallbackSignIn();
         });
+}
+
+// Show fallback sign-in button
+function showFallbackSignIn() {
+    console.log('🔄 Showing fallback sign-in button');
+    const fallbackButton = document.getElementById('fallbackSignIn');
+    if (fallbackButton) {
+        fallbackButton.style.display = 'block';
+    }
+}
+
+// Handle fallback sign-in
+function handleFallbackSignIn() {
+    showMessage('Google Sign-In is not configured. Please check your server settings.', 'error');
+    console.log('Fallback sign-in clicked - Google Sign-In not available');
 }
 
 // Handle Google Sign-In response
@@ -137,32 +169,60 @@ function setupEventListeners() {
             switchTab('settings');
         });
     }
+    
+    // User menu button (three dots)
+    const userMenuBtn = document.querySelector('.user-menu-btn');
+    if (userMenuBtn) {
+        userMenuBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleUserMenu();
+        });
+    }
+    
+    // Close user menu when clicking outside
+    document.addEventListener('click', function(e) {
+        const userMenu = document.getElementById('userMenu');
+        const userProfile = document.querySelector('.user-profile');
+        
+        if (userMenu && !userProfile.contains(e.target)) {
+            closeUserMenu();
+        }
+    });
 }
 
 // Switch between tabs
 function switchTab(tabName) {
+    console.log(`🔄 Switching to tab: ${tabName}`);
+    
     // Remove active class from all nav items
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach(item => item.classList.remove('active'));
     
-    // Add active class to clicked nav item
+    // Add active class to clicked nav item (only if it exists)
     const activeNavItem = document.querySelector(`[data-tab="${tabName}"]`);
     if (activeNavItem) {
         activeNavItem.classList.add('active');
+        console.log(`✅ Nav item for ${tabName} activated`);
+    } else {
+        console.log(`⚠️ No nav item found for ${tabName}`);
     }
     
     // Hide all content sections
     const contentSections = document.querySelectorAll('.content-section');
     contentSections.forEach(section => section.classList.remove('active'));
+    console.log(`📦 Hidden ${contentSections.length} content sections`);
     
     // Show selected content section
     const activeSection = document.getElementById(`${tabName}Section`);
     if (activeSection) {
         activeSection.classList.add('active');
+        console.log(`✅ Section ${tabName}Section activated`);
+    } else {
+        console.error(`❌ Section ${tabName}Section not found`);
     }
     
-    // Load data for the active tab
-    if (googleUser) {
+    // Load data for the active tab (only if user is logged in)
+    if (googleUser && tabName !== 'sign-in') {
         switch(tabName) {
             case 'emails':
                 loadUserEmails();
@@ -189,8 +249,10 @@ function checkLoginStatus() {
         } catch (error) {
             console.error('Error parsing saved user data:', error);
             localStorage.removeItem('googleUser');
+            showSignInPrompt();
         }
     } else {
+        console.log('👤 No user found, showing sign-in prompt');
         showSignInPrompt();
     }
 }
@@ -212,20 +274,46 @@ function showUserInfo() {
             }
         }
         
-        // Hide sign-in button
-        const signInButton = document.querySelector('.g_id_signin');
-        if (signInButton) {
-            signInButton.style.display = 'none';
+        // Hide sign-in section and show emails section
+        const signInSection = document.getElementById('signInSection');
+        const emailsSection = document.getElementById('emailsSection');
+        
+        if (signInSection) {
+            signInSection.classList.remove('active');
+        }
+        if (emailsSection) {
+            emailsSection.classList.add('active');
+        }
+        
+        // Update navigation
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => item.classList.remove('active'));
+        const emailsNav = document.querySelector('[data-tab="emails"]');
+        if (emailsNav) {
+            emailsNav.classList.add('active');
         }
     }
 }
 
 // Show sign-in prompt
 function showSignInPrompt() {
-    const signInButton = document.querySelector('.g_id_signin');
+    console.log('🔐 Showing sign-in prompt');
+    
+    // Switch to sign-in section
+    switchTab('sign-in');
+    
+    // Show the Google Sign-In button
+    const signInButton = document.getElementById('googleSignInButton');
     if (signInButton) {
         signInButton.style.display = 'block';
+        console.log('✅ Sign-in button element found and shown');
+    } else {
+        console.error('❌ Sign-in button element not found');
     }
+    
+    // Force show fallback button for testing
+    console.log('🔄 Force showing fallback sign-in button for testing');
+    showFallbackSignIn();
 }
 
 // Save user to database
@@ -646,6 +734,60 @@ function toggleTheme() {
     console.log('Theme toggled');
 }
 
+// Toggle user menu
+function toggleUserMenu() {
+    const userMenu = document.getElementById('userMenu');
+    if (userMenu) {
+        userMenu.remove();
+        return;
+    }
+    
+    // Create user menu
+    const menuHTML = `
+        <div class="user-menu" id="userMenu">
+            <div class="user-menu-item" onclick="viewProfile()">
+                <i class="fas fa-user"></i>
+                <span>Profile</span>
+            </div>
+            <div class="user-menu-item" onclick="openSettings()">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </div>
+            <div class="user-menu-divider"></div>
+            <div class="user-menu-item logout" onclick="signOut()">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sign Out</span>
+            </div>
+        </div>
+    `;
+    
+    // Add menu to user profile section
+    const userProfile = document.querySelector('.user-profile');
+    if (userProfile) {
+        userProfile.insertAdjacentHTML('beforeend', menuHTML);
+    }
+}
+
+// View profile
+function viewProfile() {
+    showMessage('Profile feature coming soon!', 'info');
+    closeUserMenu();
+}
+
+// Open settings
+function openSettings() {
+    switchTab('settings');
+    closeUserMenu();
+}
+
+// Close user menu
+function closeUserMenu() {
+    const userMenu = document.getElementById('userMenu');
+    if (userMenu) {
+        userMenu.remove();
+    }
+}
+
 // Sign out function
 function signOut() {
     googleUser = null;
@@ -662,6 +804,17 @@ function signOut() {
             container.innerHTML = '';
         }
     });
+    
+    // Reset user profile in sidebar
+    const userAvatar = document.getElementById('userAvatar');
+    const userName = document.querySelector('.user-name');
+    
+    if (userAvatar) {
+        userAvatar.innerHTML = '<i class="fas fa-user"></i>';
+    }
+    if (userName) {
+        userName.textContent = 'Guest';
+    }
     
     showMessage('Signed out successfully', 'success');
 }

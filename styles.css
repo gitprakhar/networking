@@ -176,6 +176,7 @@ body {
     padding: 12px;
     background: #f9fafb;
     border-radius: 12px;
+    position: relative;
 }
 
 .user-avatar {
@@ -217,6 +218,55 @@ body {
 
 .user-menu-btn:hover {
     background: #e5e7eb;
+}
+
+/* User Menu */
+.user-menu {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 160px;
+    margin-bottom: 8px;
+}
+
+.user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 14px;
+    color: #374151;
+}
+
+.user-menu-item:hover {
+    background: #f9fafb;
+}
+
+.user-menu-item.logout {
+    color: #dc2626;
+}
+
+.user-menu-item.logout:hover {
+    background: #fef2f2;
+}
+
+.user-menu-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 4px 0;
+}
+
+.user-menu-item i {
+    width: 16px;
+    text-align: center;
+    font-size: 14px;
 }
 
 /* Header Image */
@@ -274,6 +324,110 @@ body {
 
 .content-section.active {
     display: block;
+}
+
+/* Sign In Section */
+.sign-in-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 40px 0;
+}
+
+.sign-in-card {
+    background: white;
+    border-radius: 16px;
+    padding: 48px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    max-width: 500px;
+    width: 100%;
+    text-align: center;
+}
+
+.sign-in-header {
+    margin-bottom: 32px;
+}
+
+.sign-in-header i {
+    font-size: 48px;
+    color: #3b82f6;
+    margin-bottom: 16px;
+}
+
+.sign-in-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 12px;
+}
+
+.sign-in-header p {
+    font-size: 16px;
+    color: #6b7280;
+    line-height: 1.6;
+}
+
+.sign-in-content {
+    space-y: 24px;
+}
+
+.sign-in-features {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 32px;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #374151;
+}
+
+.feature-item i {
+    color: #3b82f6;
+    width: 20px;
+    text-align: center;
+}
+
+/* Fallback Sign-In Button */
+.fallback-signin {
+    margin: 24px 0;
+}
+
+.signin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 24px;
+    background: #4285f4;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.signin-btn:hover {
+    background: #3367d6;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.signin-btn i {
+    font-size: 18px;
 }
 
 .section-header {
