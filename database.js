@@ -31,6 +31,9 @@ class Database {
                     email TEXT NOT NULL,
                     name TEXT NOT NULL,
                     picture TEXT,
+                    gmail_access_token TEXT,
+                    gmail_refresh_token TEXT,
+                    token_expires_at DATETIME,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
@@ -196,6 +199,23 @@ class Database {
             this.db.get(
                 'SELECT * FROM users WHERE google_id = ?',
                 [googleId],
+                (err, row) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(row);
+                    }
+                }
+            );
+        });
+    }
+
+    // Get user by email
+    async getUserByEmail(email) {
+        return new Promise((resolve, reject) => {
+            this.db.get(
+                'SELECT * FROM users WHERE email = ?',
+                [email],
                 (err, row) => {
                     if (err) {
                         reject(err);
@@ -560,8 +580,53 @@ class Database {
                         });
                     });
                 } else {
-                    console.log('✅ Database is up to date');
-                    resolve();
+                    // Check users table for token columns
+                    this.db.all("PRAGMA table_info(users)", (err, userColumns) => {
+                        if (err) {
+                            console.error('❌ Error checking users table info:', err);
+                            reject(err);
+                            return;
+                        }
+                        
+                        const hasAccessToken = userColumns.some(col => col.name === 'gmail_access_token');
+                        const hasRefreshToken = userColumns.some(col => col.name === 'gmail_refresh_token');
+                        const hasTokenExpires = userColumns.some(col => col.name === 'token_expires_at');
+                        
+                        if (!hasAccessToken || !hasRefreshToken || !hasTokenExpires) {
+                            console.log('📝 Adding missing token columns to users table...');
+                            
+                            const userAlterQueries = [];
+                            if (!hasAccessToken) {
+                                userAlterQueries.push("ALTER TABLE users ADD COLUMN gmail_access_token TEXT");
+                            }
+                            if (!hasRefreshToken) {
+                                userAlterQueries.push("ALTER TABLE users ADD COLUMN gmail_refresh_token TEXT");
+                            }
+                            if (!hasTokenExpires) {
+                                userAlterQueries.push("ALTER TABLE users ADD COLUMN token_expires_at DATETIME");
+                            }
+                            
+                            // Execute user alter queries
+                            let userCompleted = 0;
+                            userAlterQueries.forEach(query => {
+                                this.db.run(query, (err) => {
+                                    if (err) {
+                                        console.error('❌ Error adding user column:', err);
+                                        reject(err);
+                                        return;
+                                    }
+                                    userCompleted++;
+                                    if (userCompleted === userAlterQueries.length) {
+                                        console.log('✅ Database migrations completed');
+                                        resolve();
+                                    }
+                                });
+                            });
+                        } else {
+                            console.log('✅ Database is up to date');
+                            resolve();
+                        }
+                    });
                 }
             });
         });
@@ -573,7 +638,7 @@ class Database {
             const query = `
                 SELECT * FROM emails 
                 WHERE user_id = ? 
-                ORDER BY date DESC 
+                ORDER BY date_sent DESC 
                 LIMIT 1
             `;
             

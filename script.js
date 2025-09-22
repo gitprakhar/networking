@@ -48,17 +48,23 @@ function initializeWebSocket() {
     
     socket.on('new_emails', (data) => {
         console.log('📬 Received new emails notification:', data);
+        console.log('📬 Current user:', googleUser ? googleUser.sub : 'No user');
+        console.log('📬 Data userId:', data.userId);
         
         if (data.userId && googleUser && googleUser.sub === data.userId) {
+            console.log('📬 ✅ Processing new emails for current user');
             showMessage(`📬 ${data.count} new emails received!`, 'success');
             
-            // Refresh the current view
-            if (document.getElementById('emailsSection').classList.contains('active')) {
-                loadUserEmails();
-            }
-            if (document.getElementById('contactsSection').classList.contains('active')) {
-                loadUserContacts();
-            }
+            // Always refresh emails and contacts when new emails arrive
+            loadUserEmails();
+            loadUserContacts();
+            
+            // Update the email count in the UI
+            updateEmailCount(data.count);
+        } else {
+            console.log('📬 ❌ Ignoring new emails notification - user mismatch or no user');
+            console.log('📬 Expected:', googleUser ? googleUser.sub : 'No user');
+            console.log('📬 Received:', data.userId);
         }
     });
 }
@@ -218,12 +224,12 @@ function setupEventListeners() {
         });
     });
     
-    // Sync emails button
-    const syncEmailsBtn = document.getElementById('syncEmailsBtn');
-    if (syncEmailsBtn) {
-        syncEmailsBtn.addEventListener('click', function() {
+    // Connect Gmail button
+    const connectGmailBtn = document.getElementById('connectGmailBtn');
+    if (connectGmailBtn) {
+        connectGmailBtn.addEventListener('click', function() {
             if (googleUser) {
-                syncEmails();
+                connectGmail();
             } else {
                 showMessage('Please sign in first', 'error');
             }
@@ -608,12 +614,22 @@ function displayFollowUps(followUps) {
     container.innerHTML = followUpsHTML;
 }
 
-// Sync emails with Gmail API
-async function syncEmails() {
+// Update email count in the UI
+function updateEmailCount(newCount) {
+    const connectBtn = document.getElementById('connectGmailBtn');
+    if (connectBtn && connectBtn.innerHTML.includes('Gmail Connected')) {
+        // Update the button to show new email count
+        connectBtn.innerHTML = `<i class="fas fa-envelope"></i> Gmail Connected (${newCount} new)`;
+        connectBtn.style.background = '#3b82f6';
+    }
+}
+
+// Connect Gmail and automatically show emails
+async function connectGmail() {
     if (!googleUser) return;
     
     try {
-        showMessage('Syncing emails...', 'info');
+        showMessage('Connecting to Gmail...', 'info');
         
         // Get the Gmail access token from localStorage
         const gmailAccessToken = localStorage.getItem('gmailAccessToken');
@@ -622,6 +638,8 @@ async function syncEmails() {
             return;
         }
         
+        const gmailRefreshToken = localStorage.getItem('gmailRefreshToken');
+        
         const response = await fetch('/api/sync-emails', {
             method: 'POST',
             headers: {
@@ -629,21 +647,33 @@ async function syncEmails() {
             },
             body: JSON.stringify({
                 google_id: googleUser.sub,
-                access_token: gmailAccessToken
+                access_token: gmailAccessToken,
+                refresh_token: gmailRefreshToken
             })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            showMessage(`Successfully synced ${result.count} emails!`, 'success');
+            showMessage(`Gmail connected! Found ${result.count} emails. Real-time monitoring started.`, 'success');
+            
+            // Update the button to show connected state
+            const connectBtn = document.getElementById('connectGmailBtn');
+            if (connectBtn) {
+                connectBtn.innerHTML = '<i class="fas fa-check"></i> Gmail Connected';
+                connectBtn.disabled = true;
+                connectBtn.style.background = '#10b981';
+            }
+            
+            // Automatically load and show emails
             loadUserEmails();
+            loadUserContacts();
         } else {
-            showMessage('Error syncing emails: ' + result.error, 'error');
+            showMessage('Error connecting to Gmail: ' + result.error, 'error');
         }
     } catch (error) {
-        console.error('Error syncing emails:', error);
-        showMessage('Error syncing emails. Please try again.', 'error');
+        console.error('Error connecting to Gmail:', error);
+        showMessage('Error connecting to Gmail. Please try again.', 'error');
     }
 }
 

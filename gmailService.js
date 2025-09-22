@@ -6,7 +6,7 @@ class GmailService {
     }
 
     // Set up OAuth2 client with access token
-    setAuth(accessToken) {
+    setAuth(accessToken, refreshToken = null) {
         this.oauth2Client = new google.auth.OAuth2(
             process.env.GOOGLE_CLIENT_ID,
             process.env.GOOGLE_CLIENT_SECRET,
@@ -14,8 +14,25 @@ class GmailService {
         );
         
         this.oauth2Client.setCredentials({
-            access_token: accessToken
+            access_token: accessToken,
+            refresh_token: refreshToken
         });
+    }
+
+    // Refresh access token using refresh token
+    async refreshAccessToken() {
+        if (!this.oauth2Client) {
+            throw new Error('OAuth2 client not initialized');
+        }
+
+        try {
+            const { credentials } = await this.oauth2Client.refreshAccessToken();
+            this.oauth2Client.setCredentials(credentials);
+            return credentials;
+        } catch (error) {
+            console.error('Error refreshing access token:', error);
+            throw error;
+        }
     }
 
     // Fetch emails from Gmail API
@@ -210,7 +227,8 @@ class GmailService {
             const endDateStr = endDate.toISOString().split('T')[0];
             
             // Build query for emails since the specified date
-            const query = `after:${startDateStr} before:${endDateStr}`;
+            // Use a more precise time-based query
+            const query = `after:${startDateStr}`;
             
             console.log(`📧 Fetching emails since ${startDateStr} for user: ${userEmail}`);
             
@@ -224,17 +242,24 @@ class GmailService {
             const messages = response.data.messages || [];
             console.log(`📬 Found ${messages.length} messages since ${startDateStr}`);
             
+            if (messages.length === 0) {
+                console.log(`📭 No new messages found since ${startDateStr}`);
+                return [];
+            }
+            
             // Fetch detailed information for each message
             const emails = [];
             for (const message of messages) {
                 try {
                     const emailDetails = await this.fetchEmailDetails(gmail, message.id, userEmail);
                     emails.push(emailDetails);
+                    console.log(`📧 Processed email: ${emailDetails.subject} from ${emailDetails.sender_email}`);
                 } catch (error) {
                     console.error(`Error fetching email ${message.id}:`, error);
                 }
             }
             
+            console.log(`✅ Successfully processed ${emails.length} emails`);
             return emails;
             
         } catch (error) {
