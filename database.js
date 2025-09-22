@@ -566,6 +566,27 @@ class Database {
             });
         });
     }
+
+    // Get the latest email for a user
+    async getLatestEmail(userId) {
+        return new Promise((resolve, reject) => {
+            const query = `
+                SELECT * FROM emails 
+                WHERE user_id = ? 
+                ORDER BY date DESC 
+                LIMIT 1
+            `;
+            
+            this.db.get(query, [userId], (err, row) => {
+                if (err) {
+                    console.error('Error getting latest email:', err);
+                    reject(err);
+                } else {
+                    resolve(row);
+                }
+            });
+        });
+    }
 }
 
 module.exports = Database;

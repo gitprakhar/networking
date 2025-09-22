@@ -5,9 +5,18 @@ const cors = require('cors');
 const Database = require('./database');
 const GmailService = require('./gmailService');
 const OpenAIService = require('./openaiService');
+const { Server } = require('socket.io');
+const http = require('http');
 require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 const PORT = process.env.PORT || 8000;
 
 // Initialize database and services
@@ -21,6 +30,84 @@ db.init().then(() => {
     console.error('❌ Database initialization failed:', err);
     process.exit(1);
 });
+
+// Real-time email monitoring
+const emailMonitors = new Map(); // Store active monitors for each user
+
+// Function to start monitoring emails for a user
+function startEmailMonitoring(userId, accessToken) {
+    console.log(`🔄 Starting email monitoring for user: ${userId}`);
+    
+    const gmailService = new GmailService();
+    gmailService.setAuth(accessToken);
+    
+    let lastCheckTime = new Date();
+    let isMonitoring = true;
+    
+    const checkForNewEmails = async () => {
+        if (!isMonitoring) return;
+        
+        try {
+            console.log(`📧 Checking for new emails for user: ${userId}`);
+            
+            // Get the latest email timestamp from database
+            const latestEmail = await db.getLatestEmail(userId);
+            const sinceDate = latestEmail ? new Date(latestEmail.date) : new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours if no emails
+            
+            // Fetch new emails from Gmail
+            const newEmails = await gmailService.fetchEmailsSince(sinceDate);
+            
+            if (newEmails && newEmails.length > 0) {
+                console.log(`📬 Found ${newEmails.length} new emails for user: ${userId}`);
+                
+                // Save new emails to database
+                await db.saveEmails(userId, newEmails);
+                
+                // Update contacts
+                const contacts = await db.getContacts(userId);
+                console.log(`👥 Updated ${contacts.length} contacts for user: ${userId}`);
+                
+                // Notify frontend via WebSocket
+                io.emit('new_emails', {
+                    userId: userId,
+                    count: newEmails.length,
+                    emails: newEmails.slice(0, 5) // Send first 5 emails for preview
+                });
+                
+                console.log(`✅ Notified frontend of ${newEmails.length} new emails`);
+            }
+            
+        } catch (error) {
+            console.error(`❌ Error monitoring emails for user ${userId}:`, error);
+        }
+    };
+    
+    // Check immediately
+    checkForNewEmails();
+    
+    // Set up interval checking (every 2 minutes)
+    const intervalId = setInterval(checkForNewEmails, 2 * 60 * 1000);
+    
+    // Store monitor info
+    emailMonitors.set(userId, {
+        intervalId: intervalId,
+        gmailService: gmailService,
+        stop: () => {
+            isMonitoring = false;
+            clearInterval(intervalId);
+            emailMonitors.delete(userId);
+            console.log(`🛑 Stopped email monitoring for user: ${userId}`);
+        }
+    });
+}
+
+// Function to stop monitoring emails for a user
+function stopEmailMonitoring(userId) {
+    const monitor = emailMonitors.get(userId);
+    if (monitor) {
+        monitor.stop();
+    }
+}
 
 // Middleware
 app.use(cors());
@@ -208,10 +295,13 @@ app.post('/api/sync-emails', async (req, res) => {
     // Update contacts from emails
     await db.updateContactsFromEmails(user.id, emails);
 
+    // Start real-time email monitoring for this user
+    startEmailMonitoring(user.id, access_token);
+
     res.json({ 
       success: true, 
       count: emails.length,
-      message: `Synced ${emails.length} emails from the last 7 days`
+      message: `Synced ${emails.length} emails and started real-time monitoring`
     });
   } catch (error) {
     console.error('Error syncing emails:', error);
@@ -497,10 +587,26 @@ app.delete('/api/follow-up/:followUpId', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+// WebSocket connection handling
+io.on('connection', (socket) => {
+    console.log('🔌 User connected:', socket.id);
+    
+    socket.on('join_user', (userId) => {
+        socket.join(`user_${userId}`);
+        console.log(`👤 User ${userId} joined their room`);
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('🔌 User disconnected:', socket.id);
+    });
+});
+
+// Start server
+server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📁 Serving files from: ${__dirname}`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔌 WebSocket server ready`);
   
   // Check if Google Client ID is configured
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID_HERE') {

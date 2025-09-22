@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Networking Hub</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -16,17 +16,6 @@
             <div class="logo">
                 <i class="fas fa-network-wired"></i>
                 <span>Networking Hub</span>
-            </div>
-            <div class="header-actions">
-                <button class="icon-btn" id="settingsBtn">
-                    <i class="fas fa-cog"></i>
-                </button>
-                <button class="icon-btn" id="notificationsBtn">
-                    <i class="fas fa-bell"></i>
-                </button>
-                <button class="icon-btn" id="gridBtn">
-                    <i class="fas fa-th"></i>
-                </button>
             </div>
         </div>
 
@@ -43,14 +32,6 @@
             <a href="#" class="nav-item" data-tab="follow-ups">
                 <i class="fas fa-tasks"></i>
                 <span>Follow-ups</span>
-            </a>
-            <a href="#" class="nav-item" data-tab="analytics">
-                <i class="fas fa-chart-line"></i>
-                <span>Analytics</span>
-            </a>
-            <a href="#" class="nav-item" data-tab="settings">
-                <i class="fas fa-cog"></i>
-                <span>Settings</span>
             </a>
         </nav>
 
@@ -200,105 +181,9 @@
                 </div>
             </div>
 
-            <!-- Settings Section -->
-            <div class="content-section" id="settingsSection">
-                <div class="section-header">
-                    <h2>Settings</h2>
-                </div>
-                <div class="settings-container">
-                    <div class="empty-state">
-                        <i class="fas fa-cog"></i>
-                        <h3>Settings</h3>
-                        <p>Configure your networking preferences</p>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
-    <!-- Right Sidebar - Calendar -->
-    <div class="calendar-sidebar">
-        <div class="calendar-header">
-            <h3>Calendar - <span id="currentMonth">August 2023</span></h3>
-            <div class="calendar-actions">
-                <button class="calendar-btn active">Today</button>
-                <div class="view-tabs">
-                    <button class="view-tab active">Day</button>
-                    <button class="view-tab">Week</button>
-                    <button class="view-tab">Month</button>
-                </div>
-                <div class="calendar-nav">
-                    <button class="nav-btn"><i class="fas fa-chevron-left"></i></button>
-                    <button class="nav-btn"><i class="fas fa-chevron-right"></i></button>
-                </div>
-                <button class="customize-btn">
-                    <i class="fas fa-cog"></i>
-                </button>
-            </div>
-        </div>
-        
-        <div class="calendar-content">
-            <div class="current-date">
-                <span class="day-name">FRI</span>
-                <span class="day-number">1</span>
-            </div>
-            
-            <div class="timeline">
-                <div class="time-slot">
-                    <span class="time">11 AM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">12 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">1 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">2 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">3 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">4 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">5 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">6 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">7 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">8 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">9 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">10 PM</span>
-                    <div class="time-line"></div>
-                </div>
-                <div class="time-slot">
-                    <span class="time">11 PM</span>
-                    <div class="time-line"></div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Google Sign-In Configuration -->
     <div id="g_id_onload"
@@ -313,6 +198,7 @@
     <div id="messageContainer" class="message-container"></div>
 
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 // Global variables
 let googleUser = null;
 let gmailService = null;
+let socket = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -9,14 +10,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Google Sign-In
     initializeGoogleSignIn();
     
+    // Initialize WebSocket connection
+    initializeWebSocket();
+    
     // Set up event listeners
     setupEventListeners();
     
     // Check if user is already logged in
     checkLoginStatus();
     
-    // Initialize calendar
-    initializeCalendar();
     
     // Show fallback sign-in after 3 seconds if Google Sign-In hasn't loaded
     setTimeout(() => {
@@ -29,6 +31,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 3000);
 });
+
+// Initialize WebSocket connection
+function initializeWebSocket() {
+    console.log('🔌 Initializing WebSocket connection...');
+    
+    socket = io();
+    
+    socket.on('connect', () => {
+        console.log('✅ Connected to server via WebSocket');
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('❌ Disconnected from server');
+    });
+    
+    socket.on('new_emails', (data) => {
+        console.log('📬 Received new emails notification:', data);
+        
+        if (data.userId && googleUser && googleUser.sub === data.userId) {
+            showMessage(`📬 ${data.count} new emails received!`, 'success');
+            
+            // Refresh the current view
+            if (document.getElementById('emailsSection').classList.contains('active')) {
+                loadUserEmails();
+            }
+            if (document.getElementById('contactsSection').classList.contains('active')) {
+                loadUserContacts();
+            }
+        }
+    });
+}
 
 // Initialize Google Sign-In
 function initializeGoogleSignIn() {
@@ -346,6 +379,12 @@ function showUserInfo() {
         const emailsNav = document.querySelector('[data-tab="emails"]');
         if (emailsNav) {
             emailsNav.classList.add('active');
+        }
+        
+        // Join user's WebSocket room for real-time updates
+        if (socket && googleUser.sub) {
+            socket.emit('join_user', googleUser.sub);
+            console.log(`🔌 Joined WebSocket room for user: ${googleUser.sub}`);
         }
     }
 }
@@ -777,17 +816,6 @@ function formatDate(dateString) {
     }
 }
 
-// Initialize calendar
-function initializeCalendar() {
-    const now = new Date();
-    const monthNames = ["January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"];
-    
-    const currentMonth = document.getElementById('currentMonth');
-    if (currentMonth) {
-        currentMonth.textContent = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
-    }
-}
 
 // Toggle theme
 function toggleTheme() {

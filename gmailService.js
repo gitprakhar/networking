@@ -187,6 +187,61 @@ class GmailService {
             throw new Error(`Gmail API connection failed: ${error.message}`);
         }
     }
+
+    // Fetch emails since a specific date
+    async fetchEmailsSince(sinceDate, days = 7) {
+        if (!this.oauth2Client) {
+            throw new Error('OAuth2 client not initialized');
+        }
+
+        const gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+        
+        try {
+            // Get user's email address first
+            const profile = await gmail.users.getProfile({ userId: 'me' });
+            const userEmail = profile.data.emailAddress;
+            
+            // Calculate date range
+            const endDate = new Date();
+            const startDate = sinceDate || new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+            
+            // Format dates for Gmail query
+            const startDateStr = startDate.toISOString().split('T')[0];
+            const endDateStr = endDate.toISOString().split('T')[0];
+            
+            // Build query for emails since the specified date
+            const query = `after:${startDateStr} before:${endDateStr}`;
+            
+            console.log(`📧 Fetching emails since ${startDateStr} for user: ${userEmail}`);
+            
+            // Fetch message list
+            const response = await gmail.users.messages.list({
+                userId: 'me',
+                q: query,
+                maxResults: 50
+            });
+            
+            const messages = response.data.messages || [];
+            console.log(`📬 Found ${messages.length} messages since ${startDateStr}`);
+            
+            // Fetch detailed information for each message
+            const emails = [];
+            for (const message of messages) {
+                try {
+                    const emailDetails = await this.fetchEmailDetails(gmail, message.id, userEmail);
+                    emails.push(emailDetails);
+                } catch (error) {
+                    console.error(`Error fetching email ${message.id}:`, error);
+                }
+            }
+            
+            return emails;
+            
+        } catch (error) {
+            console.error('Error fetching emails since date:', error);
+            throw new Error(`Gmail API connection failed: ${error.message}`);
+        }
+    }
 }
 
 module.exports = GmailService;

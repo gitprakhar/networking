@@ -6,7 +6,7 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: #fafafa;
     color: #333;
     line-height: 1.6;
@@ -29,21 +29,11 @@ body {
 
 .main-content {
     margin-left: 280px;
-    margin-right: 320px;
+    margin-right: 0;
     min-height: 100vh;
     background: #fafafa;
 }
 
-.calendar-sidebar {
-    position: fixed;
-    right: 0;
-    top: 0;
-    width: 320px;
-    height: 100vh;
-    background: #ffffff;
-    border-left: 1px solid #e5e7eb;
-    z-index: 999;
-}
 
 /* Sidebar Header */
 .sidebar-header {
@@ -51,7 +41,6 @@ body {
     border-bottom: 1px solid #e5e7eb;
     display: flex;
     align-items: center;
-    justify-content: space-between;
 }
 
 .logo {
@@ -68,29 +57,6 @@ body {
     color: #3b82f6;
 }
 
-.header-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.icon-btn {
-    width: 36px;
-    height: 36px;
-    border: none;
-    background: #f3f4f6;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #6b7280;
-}
-
-.icon-btn:hover {
-    background: #e5e7eb;
-    color: #374151;
-}
 
 /* Sidebar Navigation */
 .sidebar-nav {
@@ -836,163 +802,6 @@ body {
     background: #2563eb;
 }
 
-/* Calendar Sidebar */
-.calendar-header {
-    padding: 24px 20px;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.calendar-header h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1f2937;
-    margin-bottom: 16px;
-}
-
-.calendar-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.calendar-btn {
-    padding: 6px 12px;
-    background: #f3f4f6;
-    color: #374151;
-    border: none;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.calendar-btn.active {
-    background: #3b82f6;
-    color: white;
-}
-
-.view-tabs {
-    display: flex;
-    gap: 4px;
-}
-
-.view-tab {
-    padding: 6px 12px;
-    background: none;
-    color: #6b7280;
-    border: none;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.view-tab.active {
-    background: #f3f4f6;
-    color: #374151;
-}
-
-.calendar-nav {
-    display: flex;
-    gap: 4px;
-}
-
-.nav-btn {
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: #f3f4f6;
-    color: #6b7280;
-    border-radius: 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    transition: all 0.2s ease;
-}
-
-.nav-btn:hover {
-    background: #e5e7eb;
-    color: #374151;
-}
-
-.customize-btn {
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: #f3f4f6;
-    color: #6b7280;
-    border-radius: 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    transition: all 0.2s ease;
-}
-
-.customize-btn:hover {
-    background: #e5e7eb;
-    color: #374151;
-}
-
-.calendar-content {
-    padding: 20px;
-}
-
-.current-date {
-    text-align: center;
-    margin-bottom: 24px;
-}
-
-.day-name {
-    display: block;
-    font-size: 12px;
-    color: #6b7280;
-    font-weight: 500;
-    margin-bottom: 4px;
-}
-
-.day-number {
-    display: inline-block;
-    width: 40px;
-    height: 40px;
-    background: #3b82f6;
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.timeline {
-    space-y: 16px;
-}
-
-.time-slot {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.time {
-    width: 40px;
-    font-size: 12px;
-    color: #6b7280;
-    font-weight: 500;
-}
-
-.time-line {
-    flex: 1;
-    height: 1px;
-    background: #e5e7eb;
-}
 
 /* Empty States */
 .empty-state {
@@ -1065,10 +874,6 @@ body {
 
 /* Responsive Design */
 @media (max-width: 1200px) {
-    .calendar-sidebar {
-        display: none;
-    }
-    
     .main-content {
         margin-right: 0;
     }
