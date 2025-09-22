@@ -300,7 +300,7 @@ function showSignInPrompt() {
     console.log('🔐 Showing sign-in prompt');
     
     // Switch to sign-in section
-    switchTab('sign-in');
+    switchTab('signIn');
     
     // Show the Google Sign-In button
     const signInButton = document.getElementById('googleSignInButton');
