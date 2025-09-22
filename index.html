@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Networking Hub</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+        <!-- Header -->
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-network-wired"></i>
+                <span>Networking Hub</span>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" id="settingsBtn">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <button class="icon-btn" id="notificationsBtn">
+                    <i class="fas fa-bell"></i>
+                </button>
+                <button class="icon-btn" id="gridBtn">
+                    <i class="fas fa-th"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-tab="emails">
+                <i class="fas fa-envelope"></i>
+                <span>Emails</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="contacts">
+                <i class="fas fa-users"></i>
+                <span>Contacts</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="follow-ups">
+                <i class="fas fa-tasks"></i>
+                <span>Follow-ups</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="analytics">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <!-- Footer -->
+        <div class="sidebar-footer">
+            <a href="#" class="footer-link">
+                <i class="fab fa-discord"></i>
+                <span>Join Discord</span>
+            </a>
+            <a href="#" class="footer-link">
+                <i class="fas fa-coffee"></i>
+                <span>Support Us</span>
+            </a>
+            <button class="footer-link" id="themeToggle">
+                <i class="fas fa-moon"></i>
+                <span>Toggle Theme</span>
+            </button>
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-info" id="userInfo">
+                    <span class="user-name">Guest</span>
+                    <button class="user-menu-btn">
+                        <i class="fas fa-ellipsis-h"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header Image -->
+        <div class="header-image">
+            <div class="header-overlay">
+                <h1 class="main-title">Networking Hub</h1>
+                <p class="main-subtitle">Manage your professional relationships and follow-ups</p>
+            </div>
+        </div>
+
+        <!-- Content Sections -->
+        <div class="content-sections">
+            <!-- Emails Section -->
+            <div class="content-section active" id="emailsSection">
+                <div class="section-header">
+                    <h2>Recent Emails</h2>
+                    <button class="sync-btn" id="syncEmailsBtn">
+                        <i class="fas fa-sync-alt"></i>
+                        Sync Emails
+                    </button>
+                </div>
+                <div class="emails-container" id="emailsContainer">
+                    <div class="empty-state">
+                        <i class="fas fa-envelope-open"></i>
+                        <h3>No emails yet</h3>
+                        <p>Sign in and sync your emails to get started</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contacts Section -->
+            <div class="content-section" id="contactsSection">
+                <div class="section-header">
+                    <h2>Your Contacts</h2>
+                    <div class="contact-stats">
+                        <span class="stat-item">
+                            <i class="fas fa-users"></i>
+                            <span id="contactCount">0 contacts</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="contacts-container" id="contactsContainer">
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <h3>No contacts yet</h3>
+                        <p>Sync your emails to discover your contacts</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Follow-ups Section -->
+            <div class="content-section" id="followUpsSection">
+                <div class="section-header">
+                    <h2>Follow-ups</h2>
+                    <button class="analyze-btn" id="analyzeConversationsBtn">
+                        <i class="fas fa-brain"></i>
+                        Find Networking Opportunities
+                    </button>
+                </div>
+                <div class="follow-ups-container" id="followUpsContainer">
+                    <div class="empty-state">
+                        <i class="fas fa-tasks"></i>
+                        <h3>No follow-ups yet</h3>
+                        <p>Analyze your conversations to find networking opportunities</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Section -->
+            <div class="content-section" id="analyticsSection">
+                <div class="section-header">
+                    <h2>Analytics</h2>
+                </div>
+                <div class="analytics-container">
+                    <div class="empty-state">
+                        <i class="fas fa-chart-line"></i>
+                        <h3>Analytics coming soon</h3>
+                        <p>Track your networking progress and insights</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div class="content-section" id="settingsSection">
+                <div class="section-header">
+                    <h2>Settings</h2>
+                </div>
+                <div class="settings-container">
+                    <div class="empty-state">
+                        <i class="fas fa-cog"></i>
+                        <h3>Settings</h3>
+                        <p>Configure your networking preferences</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar - Calendar -->
+    <div class="calendar-sidebar">
+        <div class="calendar-header">
+            <h3>Calendar - <span id="currentMonth">August 2023</span></h3>
+            <div class="calendar-actions">
+                <button class="calendar-btn active">Today</button>
+                <div class="view-tabs">
+                    <button class="view-tab active">Day</button>
+                    <button class="view-tab">Week</button>
+                    <button class="view-tab">Month</button>
+                </div>
+                <div class="calendar-nav">
+                    <button class="nav-btn"><i class="fas fa-chevron-left"></i></button>
+                    <button class="nav-btn"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                <button class="customize-btn">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="calendar-content">
+            <div class="current-date">
+                <span class="day-name">FRI</span>
+                <span class="day-number">1</span>
+            </div>
+            
+            <div class="timeline">
+                <div class="time-slot">
+                    <span class="time">11 AM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">12 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">1 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">2 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">3 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">4 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">5 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">6 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">7 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">8 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">9 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">10 PM</span>
+                    <div class="time-line"></div>
+                </div>
+                <div class="time-slot">
+                    <span class="time">11 PM</span>
+                    <div class="time-line"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Sign-In Button (Hidden by default) -->
+    <div id="g_id_onload"
+         data-client_id=""
+         data-context="signin"
+         data-ux_mode="popup"
+         data-callback="handleCredentialResponse"
+         data-auto_prompt="false">
+    </div>
+
+    <div class="g_id_signin"
+         data-type="standard"
+         data-shape="rectangular"
+         data-theme="outline"
+         data-text="signin_with"
+         data-size="large"
+         data-logo_alignment="left">
+    </div>
+
+    <!-- Message Container -->
+    <div id="messageContainer" class="message-container"></div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="script.js"></script>
+</body>
+</html>

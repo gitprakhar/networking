@@ -1,0 +1,32 @@
+{
+  "name": "google-login-demo",
+  "version": "1.0.0",
+  "description": "A simple Google OAuth login implementation with persistent authentication",
+  "main": "index.html",
+  "scripts": {
+    "start": "node server.js",
+    "serve": "node server.js",
+    "dev": "node server.js",
+    "python": "python3 -m http.server 8000"
+  },
+  "keywords": [
+    "google",
+    "oauth",
+    "login",
+    "authentication",
+    "javascript",
+    "html",
+    "css"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "googleapis": "^128.0.0",
+    "openai": "^4.20.1",
+    "sqlite3": "^5.1.6"
+  }
+}
