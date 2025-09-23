@@ -56,18 +56,23 @@ class GmailService {
         const startDateStr = startDate.toISOString().split('T')[0];
         const endDateStr = endDate.toISOString().split('T')[0];
         
-        // Build Gmail query to include both sent and received emails
-        const query = `after:${startDateStr} before:${endDateStr}`;
+        console.log(`📅 Fetching emails from ${startDateStr} to ${endDateStr} (last ${days} days)`);
+        
+        // Build Gmail query to include both sent and received emails, but exclude promotional emails
+        // Remove the 'before' clause to get all emails after the start date
+        const query = `after:${startDateStr} -category:promotions -category:updates -category:social -in:spam`;
         
         try {
             // Get list of messages (includes both sent and received by default)
             const response = await gmail.users.messages.list({
                 userId: 'me',
                 q: query,
-                maxResults: 100 // Increased to get more emails including sent ones
+                maxResults: days < 0.1 ? 50 : 500 // Limit to 50 emails for very recent queries (push notifications)
             });
 
             const messages = response.data.messages || [];
+            console.log(`📬 Found ${messages.length} messages in Gmail query`);
+            
             const emails = [];
 
             // Fetch detailed information for each message
@@ -78,11 +83,16 @@ class GmailService {
                         emails.push(email);
                     }
                 } catch (error) {
+                    if (error.message.includes('Quota exceeded') || error.message.includes('rateLimitExceeded')) {
+                        console.log(`⚠️  Rate limit hit, stopping email fetch to avoid further quota issues`);
+                        break; // Stop fetching more emails to avoid hitting rate limits
+                    }
                     console.error(`Error fetching email ${message.id}:`, error.message);
                     // Continue with other emails even if one fails
                 }
             }
 
+            console.log(`✅ Successfully fetched ${emails.length} emails from the last ${days} days`);
             return emails;
         } catch (error) {
             console.error('Error fetching emails:', error);
@@ -226,9 +236,9 @@ class GmailService {
             const startDateStr = startDate.toISOString().split('T')[0];
             const endDateStr = endDate.toISOString().split('T')[0];
             
-            // Build query for emails since the specified date
+            // Build query for emails since the specified date, excluding promotional emails
             // Use a more precise time-based query
-            const query = `after:${startDateStr}`;
+            const query = `after:${startDateStr} -category:promotions -category:updates -category:social -in:spam`;
             
             console.log(`📧 Fetching emails since ${startDateStr} for user: ${userEmail}`);
             
@@ -253,7 +263,6 @@ class GmailService {
                 try {
                     const emailDetails = await this.fetchEmailDetails(gmail, message.id, userEmail);
                     emails.push(emailDetails);
-                    console.log(`📧 Processed email: ${emailDetails.subject} from ${emailDetails.sender_email}`);
                 } catch (error) {
                     console.error(`Error fetching email ${message.id}:`, error);
                 }

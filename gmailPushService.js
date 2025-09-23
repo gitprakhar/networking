@@ -1,9 +1,14 @@
 const { google } = require('googleapis');
 const { PubSub } = require('@google-cloud/pubsub');
+const path = require('path');
 
 class GmailPushService {
     constructor() {
-        this.pubsub = new PubSub();
+        // Initialize PubSub with service account credentials
+        this.pubsub = new PubSub({
+            keyFilename: path.join(__dirname, 'networking-app-472722-0a0273969c54.json'),
+            projectId: 'networking-app-472722'
+        });
         this.topicName = 'gmail-push-notifications';
         this.subscriptionName = 'gmail-push-subscription';
     }
@@ -13,7 +18,7 @@ class GmailPushService {
         try {
             console.log(`🔔 Setting up Gmail push notifications for user: ${userId}`);
             
-            // Initialize Gmail API client
+            // Initialize Gmail API client with user's OAuth token
             const oauth2Client = new google.auth.OAuth2(
                 process.env.GOOGLE_CLIENT_ID,
                 process.env.GOOGLE_CLIENT_SECRET,
@@ -27,17 +32,17 @@ class GmailPushService {
             
             const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
             
-            // Create topic if it doesn't exist
+            // Create topic if it doesn't exist (using service account)
             await this.createTopicIfNotExists();
             
-            // Create subscription if it doesn't exist
+            // Create subscription if it doesn't exist (using service account)
             await this.createSubscriptionIfNotExists();
             
-            // Set up Gmail push notification
+            // Set up Gmail push notification (using user's OAuth token)
             const watchRequest = {
                 userId: 'me',
                 requestBody: {
-                    topicName: `projects/${process.env.GOOGLE_CLOUD_PROJECT_ID}/topics/${this.topicName}`,
+                    topicName: `projects/networking-app-472722/topics/${this.topicName}`,
                     labelIds: ['INBOX'], // Watch for new emails in inbox
                     labelFilterAction: 'include'
                 }
@@ -73,20 +78,21 @@ class GmailPushService {
             }
         } catch (error) {
             console.error('❌ Error creating topic:', error);
-            throw error;
+            // Don't throw error for topic creation - it might already exist
+            console.log('⚠️  Topic creation failed, continuing...');
         }
     }
 
-    // Create Pub/Sub subscription if it doesn't exist
+    // Create or update Pub/Sub subscription
     async createSubscriptionIfNotExists() {
         try {
-            const subscription = this.pubsub.subscription(this.subscriptionName);
+            const topic = this.pubsub.topic(this.topicName);
+            const subscription = topic.subscription(this.subscriptionName);
             const [exists] = await subscription.exists();
             
             if (!exists) {
                 console.log(`📝 Creating Pub/Sub subscription: ${this.subscriptionName}`);
-                await subscription.create({
-                    topic: this.topicName,
+                await topic.createSubscription(this.subscriptionName, {
                     pushConfig: {
                         pushEndpoint: `${process.env.WEBHOOK_BASE_URL}/webhook/gmail-push`
                     }
@@ -94,10 +100,29 @@ class GmailPushService {
                 console.log(`✅ Created subscription: ${this.subscriptionName}`);
             } else {
                 console.log(`✅ Subscription already exists: ${this.subscriptionName}`);
+                // Delete and recreate subscription to ensure new webhook URL
+                console.log(`🔄 Deleting existing subscription to update webhook URL...`);
+                try {
+                    await subscription.delete();
+                    console.log(`✅ Deleted existing subscription`);
+                    
+                    // Create new subscription with new webhook URL
+                    console.log(`📝 Creating new subscription with webhook URL: ${process.env.WEBHOOK_BASE_URL}/webhook/gmail-push`);
+                    await topic.createSubscription(this.subscriptionName, {
+                        pushConfig: {
+                            pushEndpoint: `${process.env.WEBHOOK_BASE_URL}/webhook/gmail-push`
+                        }
+                    });
+                    console.log(`✅ Created new subscription with updated webhook URL`);
+                } catch (updateError) {
+                    console.error(`❌ Failed to update subscription:`, updateError.message);
+                    console.log(`⚠️  Continuing with existing subscription...`);
+                }
             }
         } catch (error) {
-            console.error('❌ Error creating subscription:', error);
-            throw error;
+            console.error('❌ Error creating/updating subscription:', error);
+            // Don't throw error for subscription creation - it might already exist
+            console.log('⚠️  Subscription creation/update failed, continuing...');
         }
     }
 
@@ -106,8 +131,35 @@ class GmailPushService {
         try {
             console.log('📬 Processing Gmail push notification:', message);
             
-            // Decode the message data
-            const data = JSON.parse(Buffer.from(message.data, 'base64').toString());
+            // Handle different message formats
+            let data;
+            if (message.message && message.message.data && typeof message.message.data === 'string') {
+                // Pub/Sub message format - decode base64 data
+                data = JSON.parse(Buffer.from(message.message.data, 'base64').toString());
+            } else if (message.data && typeof message.data === 'string') {
+                // Direct base64 data
+                data = JSON.parse(Buffer.from(message.data, 'base64').toString());
+            } else if (message.emailAddress) {
+                // Direct Gmail notification format
+                data = message;
+            } else if (message.test) {
+                // Test message format
+                console.log('📧 Test webhook message received');
+                return {
+                    userEmail: 'test@example.com',
+                    historyId: 'test',
+                    timestamp: new Date()
+                };
+            } else {
+                // Fallback for unknown formats
+                console.log('📧 Unknown webhook message format:', message);
+                return {
+                    userEmail: 'unknown@example.com',
+                    historyId: 'unknown',
+                    timestamp: new Date()
+                };
+            }
+            
             console.log('📧 Gmail notification data:', data);
             
             // Extract user email and history ID

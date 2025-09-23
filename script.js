@@ -136,7 +136,7 @@ function requestGmailAccess() {
             if (config.googleClientId && config.googleClientId !== 'YOUR_GOOGLE_CLIENT_ID') {
                 const clientId = config.googleClientId;
                 const redirectUri = window.location.origin + '/oauth/callback';
-                const scope = 'https://www.googleapis.com/auth/gmail.readonly';
+                const scope = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/pubsub';
                 
                 console.log('🔑 Using client ID:', clientId);
                 console.log('🌐 Redirect URI:', redirectUri);
@@ -233,6 +233,26 @@ function setupEventListeners() {
             } else {
                 showMessage('Please sign in first', 'error');
             }
+        });
+    }
+
+    // Refresh Emails button
+    const refreshEmailsBtn = document.getElementById('refreshEmailsBtn');
+    if (refreshEmailsBtn) {
+        refreshEmailsBtn.addEventListener('click', function() {
+            if (googleUser) {
+                refreshEmails();
+            } else {
+                showMessage('Please sign in first', 'error');
+            }
+        });
+    }
+
+    // Clear Tokens button
+    const clearTokensBtn = document.getElementById('clearTokensBtn');
+    if (clearTokensBtn) {
+        clearTokensBtn.addEventListener('click', function() {
+            clearGmailTokens();
         });
     }
     
@@ -340,6 +360,18 @@ function checkLoginStatus() {
             console.log('👤 User already logged in:', googleUser.name);
             showUserInfo();
             loadUserData();
+            
+            // Check if Gmail tokens are available and auto-connect
+            const gmailAccessToken = localStorage.getItem('gmailAccessToken');
+            if (gmailAccessToken) {
+                console.log('🔑 Gmail tokens found, saving to database and auto-connecting...');
+                // Save Gmail tokens to database first
+                saveUserToDatabase();
+                // Auto-connect Gmail if tokens are available
+                setTimeout(() => {
+                    connectGmail();
+                }, 1000);
+            }
         } catch (error) {
             console.error('Error parsing saved user data:', error);
             localStorage.removeItem('googleUser');
@@ -421,6 +453,11 @@ async function saveUserToDatabase() {
     if (!googleUser) return;
     
     try {
+        // Get Gmail tokens from localStorage
+        const gmailAccessToken = localStorage.getItem('gmailAccessToken');
+        const gmailRefreshToken = localStorage.getItem('gmailRefreshToken');
+        const gmailTokenExpires = localStorage.getItem('gmailTokenExpires');
+        
         const response = await fetch('/api/save-user', {
             method: 'POST',
             headers: {
@@ -430,7 +467,10 @@ async function saveUserToDatabase() {
                 google_id: googleUser.sub,
                 name: googleUser.name,
                 email: googleUser.email,
-                picture: googleUser.picture
+                picture: googleUser.picture,
+                gmail_access_token: gmailAccessToken,
+                gmail_refresh_token: gmailRefreshToken,
+                token_expires_at: gmailTokenExpires
             })
         });
         
@@ -449,12 +489,47 @@ async function saveUserToDatabase() {
 async function loadUserData() {
     if (!googleUser) return;
     
-    // Load emails, contacts, and follow-ups
+    // Load emails, contacts, and follow-ups from database
     await Promise.all([
         loadUserEmails(),
         loadUserContacts(),
         loadUserFollowUps()
     ]);
+    
+    // Also fetch fresh emails from Gmail if tokens are available
+    const gmailAccessToken = localStorage.getItem('gmailAccessToken');
+    if (gmailAccessToken) {
+        console.log('🔄 Auto-fetching fresh emails from Gmail...');
+        try {
+            const gmailRefreshToken = localStorage.getItem('gmailRefreshToken');
+            
+            const response = await fetch('/api/sync-emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    google_id: googleUser.sub,
+                    access_token: gmailAccessToken,
+                    refresh_token: gmailRefreshToken
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Auto-fetched ${result.count} fresh emails from Gmail`);
+                
+                // Reload emails and contacts with fresh data
+                loadUserEmails();
+                loadUserContacts();
+            } else {
+                console.log('⚠️ Auto-fetch failed:', result.error);
+            }
+        } catch (error) {
+            console.error('❌ Error auto-fetching emails:', error);
+        }
+    }
 }
 
 // Load user emails from database
@@ -480,28 +555,98 @@ async function loadUserEmails() {
     }
 }
 
-// Display emails
+// Display emails grouped by conversation
 function displayEmails(emails) {
     const container = document.getElementById('emailsContainer');
     if (!container) return;
     
-    const emailsHTML = emails.map(email => `
-        <div class="email-item" onclick="viewEmailDetails('${email.gmail_id}')">
-            <div class="email-avatar">
-                ${email.sender.charAt(0).toUpperCase()}
-            </div>
-            <div class="email-content">
-                <div class="email-header">
-                    <span class="email-sender">${email.sender}</span>
-                    <span class="email-date">${formatDate(email.date_sent)}</span>
+    // Group emails by sender (conversation)
+    const conversations = groupEmailsByConversation(emails);
+    
+    const conversationsHTML = conversations.map(conversation => `
+        <div class="conversation-card" onclick="toggleConversation('${conversation.sender}')">
+            <div class="conversation-header">
+                <div class="conversation-avatar">
+                    ${conversation.sender.charAt(0).toUpperCase()}
                 </div>
-                <div class="email-subject">${email.subject}</div>
-                <div class="email-snippet">${email.snippet || 'No preview available'}</div>
+                <div class="conversation-info">
+                    <div class="conversation-sender">${conversation.sender}</div>
+                    <div class="conversation-count">${conversation.emails.length} email${conversation.emails.length > 1 ? 's' : ''}</div>
+                </div>
+                <div class="conversation-meta">
+                    <div class="conversation-date">${formatDate(conversation.latestEmail.date_sent)}</div>
+                    <div class="conversation-toggle">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="conversation-preview">
+                <div class="conversation-subject">${conversation.latestEmail.subject}</div>
+                <div class="conversation-snippet">${conversation.latestEmail.snippet || 'No preview available'}</div>
+            </div>
+            <div class="conversation-emails" id="emails-${conversation.sender}" style="display: none;">
+                ${conversation.emails.map(email => `
+                    <div class="email-item" onclick="event.stopPropagation(); viewEmailDetails('${email.gmail_id}')">
+                        <div class="email-content">
+                            <div class="email-header">
+                                <span class="email-sender">${email.sender}</span>
+                                <span class="email-date">${formatDate(email.date_sent)}</span>
+                            </div>
+                            <div class="email-subject">${email.subject}</div>
+                            <div class="email-snippet">${email.snippet || 'No preview available'}</div>
+                        </div>
+                    </div>
+                `).join('')}
             </div>
         </div>
     `).join('');
     
-    container.innerHTML = emailsHTML;
+    container.innerHTML = conversationsHTML;
+}
+
+// Group emails by sender to create conversations
+function groupEmailsByConversation(emails) {
+    const conversationMap = new Map();
+    
+    emails.forEach(email => {
+        const sender = email.sender;
+        if (!conversationMap.has(sender)) {
+            conversationMap.set(sender, {
+                sender: sender,
+                emails: [],
+                latestEmail: null
+            });
+        }
+        
+        const conversation = conversationMap.get(sender);
+        conversation.emails.push(email);
+        
+        // Keep track of the latest email
+        if (!conversation.latestEmail || new Date(email.date_sent) > new Date(conversation.latestEmail.date_sent)) {
+            conversation.latestEmail = email;
+        }
+    });
+    
+    // Convert to array and sort by latest email date
+    return Array.from(conversationMap.values())
+        .sort((a, b) => new Date(b.latestEmail.date_sent) - new Date(a.latestEmail.date_sent));
+}
+
+// Toggle conversation expansion
+function toggleConversation(sender) {
+    const emailsContainer = document.getElementById(`emails-${sender}`);
+    const conversationCard = emailsContainer.closest('.conversation-card');
+    const toggleIcon = conversationCard.querySelector('.conversation-toggle i');
+    
+    if (emailsContainer.style.display === 'none' || emailsContainer.style.display === '') {
+        emailsContainer.style.display = 'block';
+        toggleIcon.classList.remove('fa-chevron-down');
+        toggleIcon.classList.add('fa-chevron-up');
+    } else {
+        emailsContainer.style.display = 'none';
+        toggleIcon.classList.remove('fa-chevron-up');
+        toggleIcon.classList.add('fa-chevron-down');
+    }
 }
 
 // Load user contacts from database
@@ -665,6 +810,16 @@ async function connectGmail() {
                 connectBtn.style.background = '#10b981';
             }
             
+            // Show refresh and clear buttons
+            const refreshBtn = document.getElementById('refreshEmailsBtn');
+            const clearBtn = document.getElementById('clearTokensBtn');
+            if (refreshBtn) {
+                refreshBtn.style.display = 'inline-block';
+            }
+            if (clearBtn) {
+                clearBtn.style.display = 'inline-block';
+            }
+            
             // Automatically load and show emails
             loadUserEmails();
             loadUserContacts();
@@ -674,6 +829,101 @@ async function connectGmail() {
     } catch (error) {
         console.error('Error connecting to Gmail:', error);
         showMessage('Error connecting to Gmail. Please try again.', 'error');
+    }
+}
+
+// Refresh emails manually
+async function refreshEmails() {
+    if (!googleUser) return;
+    
+    try {
+        showMessage('Refreshing emails...', 'info');
+        
+        // Get the Gmail access token from localStorage
+        const gmailAccessToken = localStorage.getItem('gmailAccessToken');
+        if (!gmailAccessToken) {
+            showMessage('Gmail access not granted. Please sign in again and grant Gmail access.', 'error');
+            return;
+        }
+        
+        const gmailRefreshToken = localStorage.getItem('gmailRefreshToken');
+        
+        const response = await fetch('/api/sync-emails', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                google_id: googleUser.sub,
+                access_token: gmailAccessToken,
+                refresh_token: gmailRefreshToken
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage(`Refreshed! Found ${result.count} emails.`, 'success');
+            
+            // Reload emails and contacts
+            loadUserEmails();
+            loadUserContacts();
+        } else {
+            showMessage('Error refreshing emails: ' + result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error refreshing emails:', error);
+        showMessage('Error refreshing emails. Please try again.', 'error');
+    }
+}
+
+// Clear Gmail tokens and reset connection
+function clearGmailTokens() {
+    try {
+        // Clear Gmail tokens from localStorage
+        localStorage.removeItem('gmailAccessToken');
+        localStorage.removeItem('gmailRefreshToken');
+        localStorage.removeItem('gmailTokenExpires');
+        
+        // Also clear Google Sign-In state
+        localStorage.removeItem('googleUser');
+        localStorage.removeItem('userProfile');
+        
+        // Reset the Connect Gmail button
+        const connectBtn = document.getElementById('connectGmailBtn');
+        if (connectBtn) {
+            connectBtn.innerHTML = '<i class="fas fa-envelope"></i> Connect Gmail';
+            connectBtn.disabled = false;
+            connectBtn.style.background = '';
+        }
+        
+        // Hide refresh button but keep clear button visible
+        const refreshBtn = document.getElementById('refreshEmailsBtn');
+        if (refreshBtn) refreshBtn.style.display = 'none';
+        
+        showMessage('All tokens cleared! Please sign in again and grant Gmail access.', 'success');
+        
+        // Clear the emails display
+        const emailsContainer = document.getElementById('emailsContainer');
+        if (emailsContainer) {
+            emailsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-envelope-open"></i>
+                    <h3>No emails yet</h3>
+                    <p>Connect your Gmail account to see your emails</p>
+                </div>
+            `;
+        }
+        
+        // Reset user state
+        googleUser = null;
+        
+        // Show sign-in prompt
+        showSignInPrompt();
+        
+    } catch (error) {
+        console.error('Error clearing tokens:', error);
+        showMessage('Error clearing tokens. Please try again.', 'error');
     }
 }
 

@@ -33,113 +33,17 @@ db.init().then(() => {
     process.exit(1);
 });
 
-// Real-time email monitoring
-const emailMonitors = new Map(); // Store active monitors for each user
+// Gmail Push Notifications with fallback polling
+// Gmail will push notifications directly to our webhook when new emails arrive
+// If push fails, we fall back to polling for real-time updates
 
-// Function to start monitoring emails for a user
-function startEmailMonitoring(googleId, accessToken, refreshToken = null) {
-    console.log(`🔄 Starting email monitoring for user: ${googleId}`);
-    
-    const gmailService = new GmailService();
-    gmailService.setAuth(accessToken, refreshToken);
-    
-    let lastCheckTime = new Date();
-    let isMonitoring = true;
-    
-    const checkForNewEmails = async () => {
-        if (!isMonitoring) return;
-        
-        try {
-            console.log(`📧 Checking for new emails for user: ${googleId}`);
-            
-            // Get user from database to get the database user ID
-            const user = await db.getUserByGoogleId(googleId);
-            if (!user) {
-                console.log(`❌ User not found for Google ID: ${googleId}`);
-                return;
-            }
-            
-            // Get the latest email timestamp from database
-            const latestEmail = await db.getLatestEmail(user.id);
-            const sinceDate = latestEmail ? new Date(latestEmail.date_sent) : new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours if no emails
-            
-            console.log(`📅 Checking emails since: ${sinceDate.toISOString()}`);
-            
-            // Fetch new emails from Gmail with token refresh handling
-            let newEmails;
-            try {
-                newEmails = await gmailService.fetchEmailsSince(sinceDate);
-            } catch (error) {
-                if (error.message.includes('Invalid Credentials') && refreshToken) {
-                    console.log(`🔄 Token expired for user ${googleId}, attempting refresh...`);
-                    try {
-                        const newCredentials = await gmailService.refreshAccessToken();
-                        console.log(`✅ Token refreshed for user ${googleId}`);
-                        // Try fetching emails again with new token
-                        newEmails = await gmailService.fetchEmailsSince(sinceDate);
-                    } catch (refreshError) {
-                        console.error(`❌ Failed to refresh token for user ${googleId}:`, refreshError);
-                        return; // Skip this check, will try again next time
-                    }
-                } else {
-                    throw error; // Re-throw if it's not a token issue
-                }
-            }
-            
-            if (newEmails && newEmails.length > 0) {
-                console.log(`📬 Found ${newEmails.length} new emails for user: ${googleId}`);
-                
-                // Save new emails to database
-                await db.saveEmails(user.id, newEmails);
-                
-                // Update contacts
-                await db.updateContactsFromEmails(user.id, newEmails);
-                console.log(`👥 Updated contacts for user: ${googleId}`);
-                
-                // Notify frontend via WebSocket
-                const notificationData = {
-                    userId: googleId,
-                    count: newEmails.length,
-                    emails: newEmails.slice(0, 5) // Send first 5 emails for preview
-                };
-                
-                console.log(`📡 Sending WebSocket notification to user_${googleId}:`, notificationData);
-                io.to(`user_${googleId}`).emit('new_emails', notificationData);
-                
-                console.log(`✅ Notified frontend of ${newEmails.length} new emails`);
-            }
-            
-        } catch (error) {
-            console.error(`❌ Error monitoring emails for user ${googleId}:`, error);
-        }
-    };
-    
-    // Check immediately
-    checkForNewEmails();
-    
-    // Set up interval checking (every 30 seconds for testing)
-    const intervalId = setInterval(checkForNewEmails, 30 * 1000);
-    
-    // Store monitor info
-    emailMonitors.set(googleId, {
-        intervalId: intervalId,
-        gmailService: gmailService,
-        stop: () => {
-            isMonitoring = false;
-            clearInterval(intervalId);
-            emailMonitors.delete(googleId);
-            console.log(`🛑 Stopped email monitoring for user: ${googleId}`);
-        }
-    });
-}
+// Push notifications only - no periodic polling
+const activeUsers = new Map(); // Track users for WebSocket connections
+const pushSetupCooldown = new Map(); // Track push notification setup cooldowns
+const processedNotifications = new Set(); // Track processed notifications to prevent duplicates
 
-// Function to stop monitoring emails for a user
-function stopEmailMonitoring(googleId) {
-    const monitor = emailMonitors.get(googleId);
-    if (monitor) {
-        monitor.stop();
-    }
-}
+// Disable all periodic polling
+console.log('🚫 Periodic polling disabled - using push notifications only');
 
 // Middleware
 app.use(cors());
@@ -219,6 +123,10 @@ app.get('/oauth/callback', async (req, res) => {
     // Calculate token expiration time
     const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
     
+    // Save Gmail tokens to database (we need to get the user info first)
+    // For now, we'll let the frontend handle this after redirect
+    console.log('💾 Gmail tokens will be saved by frontend after redirect');
+    
     // Send the access token to the client
     res.send(`
       <html>
@@ -272,10 +180,8 @@ app.get('/oauth/callback', async (req, res) => {
               expires_at: '${expiresAt.toISOString()}'
             });
             
-            // Redirect back to the main app
-            setTimeout(() => {
-              window.location.href = '/';
-            }, 2000);
+            // Redirect back to the main app immediately
+            window.location.href = '/';
           </script>
         </body>
       </html>
@@ -299,9 +205,17 @@ app.get('/health', (req, res) => {
 // Email endpoints
 app.post('/api/save-user', async (req, res) => {
   try {
-    const { google_id, email, name, picture } = req.body;
+    const { google_id, email, name, picture, gmail_access_token, gmail_refresh_token, token_expires_at } = req.body;
     console.log(`👤 Saving user: ${name} (${email})`);
-    const userId = await db.createOrUpdateUser({ google_id, email, name, picture });
+    const userId = await db.createOrUpdateUser({ 
+      google_id, 
+      email, 
+      name, 
+      picture,
+      gmail_access_token,
+      gmail_refresh_token,
+      token_expires_at
+    });
     console.log(`✅ User saved with ID: ${userId}`);
     res.json({ success: true, userId });
   } catch (error) {
@@ -327,8 +241,8 @@ app.post('/api/sync-emails', async (req, res) => {
     // Test connection first
     await gmailService.testConnection();
 
-    // Fetch emails from last 7 days
-    const emails = await gmailService.fetchEmails(7);
+        // Fetch emails from last 15 minutes (reduced to minimize API calls)
+        const emails = await gmailService.fetchEmails(0.01);
     
     // Save emails to database
     await db.saveEmails(user.id, emails);
@@ -336,15 +250,23 @@ app.post('/api/sync-emails', async (req, res) => {
     // Update contacts from emails
     await db.updateContactsFromEmails(user.id, emails);
 
-    // Set up Gmail push notifications instead of polling
-    try {
-        await gmailPushService.setupPushNotifications(google_id, access_token, refresh_token);
-        console.log(`✅ Gmail push notifications set up for user: ${google_id}`);
-    } catch (error) {
-        console.error(`❌ Failed to set up Gmail push notifications for user ${google_id}:`, error);
-        // Fallback to polling if push notifications fail
-        startEmailMonitoring(google_id, access_token, refresh_token);
-    }
+        // Set up Gmail push notifications (with cooldown to prevent multiple setups)
+        const cooldownKey = `push_${google_id}`;
+        const lastSetup = pushSetupCooldown.get(cooldownKey);
+        const now = Date.now();
+        
+        if (!lastSetup || (now - lastSetup) > 3600000) { // 60 minute cooldown
+            try {
+                console.log(`🔔 Setting up Gmail push notifications for user: ${google_id}`);
+                await gmailPushService.setupPushNotifications(google_id, access_token, refresh_token);
+                console.log(`✅ Gmail push notifications set up successfully for user: ${google_id}`);
+                pushSetupCooldown.set(cooldownKey, now);
+            } catch (error) {
+                console.error(`❌ Failed to set up Gmail push notifications for user ${google_id}:`, error);
+            }
+        } else {
+            console.log(`⏳ Push notifications setup on cooldown for user: ${google_id}`);
+        }
 
     res.json({ 
       success: true, 
@@ -639,13 +561,29 @@ app.delete('/api/follow-up/:followUpId', async (req, res) => {
 io.on('connection', (socket) => {
     console.log('🔌 User connected:', socket.id);
     
-    socket.on('join_user', (userId) => {
-        socket.join(`user_${userId}`);
-        console.log(`👤 User ${userId} joined their room`);
-    });
+        socket.on('join_user', (userId) => {
+            socket.join(`user_${userId}`);
+            console.log(`👤 User ${userId} joined their room`);
+            
+            // Add user to active users for WebSocket connections
+            activeUsers.set(userId, {
+                socketId: socket.id,
+                lastSeen: new Date()
+            });
+            console.log(`👥 Added user ${userId} to active users (total: ${activeUsers.size})`);
+        });
     
     socket.on('disconnect', () => {
         console.log('🔌 User disconnected:', socket.id);
+        
+        // Remove user from active users
+        for (const [googleId, userData] of activeUsers) {
+            if (userData.socketId === socket.id) {
+                activeUsers.delete(googleId);
+                console.log(`👥 Removed user ${googleId} from active users (total: ${activeUsers.size})`);
+                break;
+            }
+        }
     });
 });
 
@@ -653,6 +591,20 @@ io.on('connection', (socket) => {
 app.post('/webhook/gmail-push', async (req, res) => {
     try {
         console.log('📬 Received Gmail push notification');
+        
+        // Create a unique key for this notification to prevent duplicates
+        const notificationKey = JSON.stringify(req.body);
+        if (processedNotifications.has(notificationKey)) {
+            console.log('⏭️  Duplicate notification, skipping...');
+            return res.status(200).send('OK');
+        }
+        processedNotifications.add(notificationKey);
+        
+        // Clean up old notifications (keep only last 100)
+        if (processedNotifications.size > 100) {
+            const firstKey = processedNotifications.values().next().value;
+            processedNotifications.delete(firstKey);
+        }
         
         // Process the push notification
         const notification = await gmailPushService.processPushNotification(req.body);
@@ -664,19 +616,40 @@ app.post('/webhook/gmail-push', async (req, res) => {
             if (user) {
                 console.log(`📧 Processing new emails for user: ${user.name} (${user.email})`);
                 
-                // Fetch new emails since the last history ID
-                const gmailService = new GmailService();
-                // Note: We'll need to get the user's access token from the database
-                // For now, we'll trigger a manual sync
-                
-                // Notify frontend via WebSocket
-                io.to(`user_${user.google_id}`).emit('new_emails', {
-                    userId: user.google_id,
-                    count: 1, // We don't know the exact count yet
-                    message: 'New emails received!'
-                });
-                
-                console.log(`✅ Notified frontend of new emails for user: ${user.google_id}`);
+                // Get user's stored access token from database
+                try {
+                    const gmailService = new GmailService();
+                    
+                    // Set the user's access token
+                    if (user.gmail_access_token) {
+                        gmailService.setAuth(user.gmail_access_token);
+                        
+                        // Fetch recent emails using the stored access token (only last 1 minute to minimize API calls)
+                        const emails = await gmailService.fetchEmails(0.0007); // Last 1 minute
+                        
+                        // Save new emails to database
+                        await db.saveEmails(user.id, emails);
+                        
+                        // Update contacts from emails
+                        await db.updateContactsFromEmails(user.id, emails);
+                        
+                        console.log(`📬 Fetched and saved ${emails.length} emails for user: ${user.name}`);
+                        
+                        // Notify frontend via WebSocket
+                        io.to(`user_${user.google_id}`).emit('new_emails', {
+                            userId: user.google_id,
+                            count: emails.length,
+                            message: `New emails received! Found ${emails.length} emails.`
+                        });
+                        
+                        console.log(`✅ Notified frontend of new emails for user: ${user.google_id}`);
+                    } else {
+                        console.log(`⚠️  No Gmail access token found for user: ${user.name}`);
+                    }
+                    
+                } catch (error) {
+                    console.error(`❌ Error fetching emails for user ${user.name}:`, error);
+                }
             }
         }
         

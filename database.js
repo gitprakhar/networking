@@ -149,7 +149,7 @@ class Database {
     // User operations
     async createOrUpdateUser(userData) {
         return new Promise((resolve, reject) => {
-            const { google_id, email, name, picture } = userData;
+            const { google_id, email, name, picture, gmail_access_token, gmail_refresh_token, token_expires_at } = userData;
             
             // First, check if user already exists
             this.db.get(
@@ -165,9 +165,11 @@ class Database {
                         // Update existing user
                         this.db.run(`
                             UPDATE users 
-                            SET email = ?, name = ?, picture = ?, updated_at = CURRENT_TIMESTAMP
+                            SET email = ?, name = ?, picture = ?, 
+                                gmail_access_token = ?, gmail_refresh_token = ?, token_expires_at = ?,
+                                updated_at = CURRENT_TIMESTAMP
                             WHERE google_id = ?
-                        `, [email, name, picture, google_id], function(err) {
+                        `, [email, name, picture, gmail_access_token, gmail_refresh_token, token_expires_at, google_id], function(err) {
                             if (err) {
                                 reject(err);
                             } else {
@@ -178,9 +180,9 @@ class Database {
                     } else {
                         // Create new user
                         this.db.run(`
-                            INSERT INTO users (google_id, email, name, picture, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                        `, [google_id, email, name, picture], function(err) {
+                            INSERT INTO users (google_id, email, name, picture, gmail_access_token, gmail_refresh_token, token_expires_at, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        `, [google_id, email, name, picture, gmail_access_token, gmail_refresh_token, token_expires_at], function(err) {
                             if (err) {
                                 reject(err);
                             } else {

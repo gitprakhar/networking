@@ -550,6 +550,134 @@ body {
 .task-icon.purple { background: #8b5cf6; }
 .task-icon.blue { background: #3b82f6; }
 
+/* Conversation Cards */
+.conversation-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 16px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.conversation-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #d1d5db;
+}
+
+.conversation-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.conversation-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.conversation-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.conversation-sender {
+    font-weight: 600;
+    font-size: 16px;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.conversation-count {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.conversation-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.conversation-date {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.conversation-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.conversation-toggle:hover {
+    background: #e5e7eb;
+}
+
+.conversation-toggle i {
+    font-size: 12px;
+    color: #6b7280;
+    transition: transform 0.2s ease;
+}
+
+.conversation-preview {
+    padding: 0 20px 20px 20px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.conversation-subject {
+    font-weight: 600;
+    font-size: 15px;
+    color: #1f2937;
+    margin-bottom: 8px;
+}
+
+.conversation-snippet {
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.conversation-emails {
+    background: #f9fafb;
+    border-top: 1px solid #f3f4f6;
+}
+
+.conversation-emails .email-item {
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid #f3f4f6;
+    border-radius: 0;
+    background: white;
+}
+
+.conversation-emails .email-item:last-child {
+    border-bottom: none;
+}
+
+.conversation-emails .email-item:hover {
+    background: #f9fafb;
+    box-shadow: none;
+}
+
 /* Email Items */
 .email-item {
     display: flex;
